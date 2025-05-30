@@ -6,7 +6,7 @@ namespace SistemaSupermecado
 {
     class Program
     {
-        // Método que exibe o menu e retorna a opção escolhida
+
         public int MostrarMenu()
         {
             Console.WriteLine("O que você deseja fazer?");
@@ -14,10 +14,11 @@ namespace SistemaSupermecado
             Console.WriteLine("1 - Verificar produtos disponíveis no mercado:");
             Console.WriteLine("2 - Incluir cliente na fila");
             Console.WriteLine("3 - Atender primeiro da fila");
-            Console.WriteLine("4 - Cancelar compra do ultimo cliente");
-            Console.WriteLine("5 - Listar produtos por ordem alfabetica");
-            Console.WriteLine("6 - Listar produtos por menor preço");
-            Console.WriteLine("7 - Encerrar programa");
+            Console.WriteLine("4 - Mostrar o total arrecadado no dia");
+            Console.WriteLine("5 - Cancelar compra do ultimo cliente");
+            Console.WriteLine("6 - Listar produtos por ordem alfabetica");
+            Console.WriteLine("7 - Listar produtos por menor preço");
+            Console.WriteLine("8 - Encerrar programa");
             Console.WriteLine();
 
             int opcao;
@@ -40,9 +41,10 @@ namespace SistemaSupermecado
             int resetaFila = 0;
             indiceCliente = random.Next(0, clientes.Length);
 
-            string[] produtosMercado = { "Arroz", "Feijão", "Batata", "Carne", "Leite", "Ovos" };
-            double[] precos = { 25.99, 14.49, 2.99, 55.99, 3.49, 1.99 };
-            int[] quantidadeDeProdutos = { 10, 20, 15, 5, 30, 50 };
+            string[] produtosMercado = { "Arroz", "Feijão", "Batata", "Carne(Kg)", "Leite", "Ovos(Uni.)", "Chocolate" };
+            double[] precos = { 25.99, 14.49, 2.99, 55.99, 3.49, 1.99, 4.79 };
+            int[] quantidadeDeProdutos = { 10, 20, 15, 20, 30, 50, 25 };
+            double totalDoDia = 0.0;
 
             static string CentralizarTexto(string texto, int largura)
             {
@@ -80,7 +82,7 @@ namespace SistemaSupermecado
                         }
                         tabela.Configure(o => o.EnableCount = false);
                         tabela.Write();
-                       
+
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
@@ -114,23 +116,39 @@ namespace SistemaSupermecado
                             Console.WriteLine($"Itens comprados: ");
                             tabela = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
                             double somaCompras = 0.0;
+
+                            HashSet<string> produtosEsgotados = new HashSet<string>();
+
                             for (int i = 0; i < quantidadeItens; i++)
                             {
                                 int itemIndex = random.Next(0, produtosMercado.Length);
                                 int quantidade = random.Next(1, 5);
 
+                                if (quantidadeDeProdutos[itemIndex] >= quantidade)
+                                {
+                                    tabela.AddRow(produtosMercado[itemIndex], precos[itemIndex].ToString("C2"), quantidade);
+                                    somaCompras += precos[itemIndex] * quantidade;
+                                    quantidadeDeProdutos[itemIndex] -= quantidade;
+                                }
+                                else
+                                {
+                                    if (!produtosEsgotados.Contains(produtosMercado[itemIndex]))
+                                    {
+                                        Console.WriteLine($"Produto {produtosMercado[itemIndex]} esgotado. Não foi possível adicionar à compra.");
+                                        produtosEsgotados.Add(produtosMercado[itemIndex]);
+                                    }
 
-                                tabela.AddRow(produtosMercado[itemIndex], precos[itemIndex].ToString("C2"), quantidade);
-
-                                somaCompras += precos[itemIndex] * quantidade;
-                                
-                                quantidadeDeProdutos[itemIndex] -= quantidade;
+                                    i--;
+                                }
                             }
-                            tabela.AddRow("","TOTAL", somaCompras.ToString("C2"));
+                            totalDoDia += somaCompras;
+
+                            tabela.AddRow("", "TOTAL", somaCompras.ToString("C2"));
 
                             tabela.Configure(o => o.EnableCount = false);
 
                             tabela.Write();
+                            Console.WriteLine("Atendimento finalizado com sucesso!");
                             Console.WriteLine();
                         }
                         else
@@ -147,14 +165,20 @@ namespace SistemaSupermecado
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
+                    case 4:
+                        Console.Clear();
+                        Console.WriteLine($"Total arrecadado no dia: {totalDoDia:C2}");
+                        Console.WriteLine();
+                        Console.WriteLine("Pressione enter para continuar...");
+                        Console.ReadKey();
+                        break;
                 }
-
-                if (opcao != 7)
+                if (opcao != 8)
                 {
                     Console.Clear();
                     opcao = program.MostrarMenu();
                 }
-            } while (opcao != 7);
+            } while (opcao != 8);
             Console.Clear();
             Console.WriteLine("Encerrando programa...");
         }
