@@ -42,17 +42,9 @@ namespace SistemaSupermecado
             int resetaFila = 0;
             indiceCliente = random.Next(0, clientes.Length);
 
-            string[,] matrizProdutos = new string[7, 3]
-            {
-                { "Arroz", "25.99", "10" },
-                { "Feijão", "14.49", "20" },
-                { "Batata", "2.99", "15" },
-                { "Carne(Kg)", "55.99", "20" },
-                { "Leite", "3.49", "30" },
-                { "Ovos(Uni.)", "1.99", "50" },
-                { "Chocolate", "4.79", "25" }
-            };
-            double totalDoDia = 0.0;
+            string[] produtosMercado = { "Arroz", "Feijão", "Batata", "Carne", "Leite", "Ovos" };
+            double[] precos = { 25.99, 14.49, 2.99, 55.99, 3.49, 1.99 };
+            int[] quantidadeDeProdutos = { 10, 20, 15, 5, 30, 50 };
 
             static string CentralizarTexto(string texto, int largura)
             {
@@ -64,56 +56,33 @@ namespace SistemaSupermecado
                 return texto.PadLeft(padLeft).PadRight(largura);
             }
 
-            void ExibirProdutos(string[,] produtos)
-            {
-                Console.WriteLine("Produtos disponíveis no mercado:");
-                Console.WriteLine();
-                var tabela = new ConsoleTable("Produto", "Preço (R$)", "Unidades");
-                int larguraProduto = 12;
-                int larguraPreco = 12;
-                int larguraUnidades = 10;
-                for (int i = 0; i < produtos.GetLength(0); i++)
-                {
-                    tabela.AddRow(
-                        CentralizarTexto(produtos[i, 0], larguraProduto),
-                        CentralizarTexto(double.Parse(produtos[i, 1], CultureInfo.InvariantCulture).ToString("C2", new CultureInfo("pt-BR")), larguraPreco),
-                        CentralizarTexto(produtos[i, 2], larguraUnidades)
-                    );
-                }
-                tabela.Configure(o => o.EnableCount = false);
-                tabela.Write();
-            }
-
-            static void MatrizParaArray(string[,] matrizProdutos, out string[] produtosMercado, out double[] preco, out int[] quantidadesDeProdutos)
-            {
-                int tamanho = matrizProdutos.GetLength(0);
-                produtosMercado = new string[tamanho];
-                preco = new double[tamanho];
-                quantidadesDeProdutos = new int[tamanho];
-
-                for (int i = 0; i < tamanho; i++)
-                {
-                    produtosMercado[i] = matrizProdutos[i, 0];
-                    preco[i] = double.Parse(matrizProdutos[i, 1], CultureInfo.InvariantCulture);
-                    quantidadesDeProdutos[i] = int.Parse(matrizProdutos[i, 2]);
-                }
-            }
             int opcao = program.MostrarMenu();
 
             do
             {
-                string[] produtosMercado;
-                double[] preco;
-                int[] quantidadeDeProdutos;
-                MatrizParaArray(matrizProdutos, out produtosMercado, out preco, out quantidadeDeProdutos);
-
-
                 switch (opcao)
                 {
                     case 1:
                         Console.Clear();
-                        ExibirProdutos(matrizProdutos);
+                        Console.WriteLine("Produtos disponíveis no mercado:");
 
+                        var tabela = new ConsoleTable("Produto", "Preço (R$)", "Unidades");
+
+                        int larguraProduto = 12;
+                        int larguraPreco = 12;
+                        int larguraUnidades = 10;
+
+                        for (int i = 0; i < produtosMercado.Length; i++)
+                        {
+                            tabela.AddRow(
+                                CentralizarTexto(produtosMercado[i], larguraProduto),
+                                CentralizarTexto(precos[i].ToString("C2"), larguraPreco),
+                                CentralizarTexto(quantidadeDeProdutos[i].ToString(), larguraUnidades)
+                            );
+                        }
+                        tabela.Configure(o => o.EnableCount = false);
+                        tabela.Write();
+                       
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
@@ -145,45 +114,26 @@ namespace SistemaSupermecado
 
                             int quantidadeItens = random.Next(1, 4);
                             Console.WriteLine($"Itens comprados: ");
-                            var tabela = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
-                            double somaCompras = 0.00;
-
-                            HashSet<string> produtosEsgotados = new HashSet<string>();
-
+                            tabela = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
+                            double somaCompras = 0.0;
                             for (int i = 0; i < quantidadeItens; i++)
                             {
                                 int itemIndex = random.Next(0, produtosMercado.Length);
                                 int quantidade = random.Next(1, 5);
 
-                                int estoqueAtual = int.Parse(matrizProdutos[itemIndex, 2]);
 
-                                if (estoqueAtual >= quantidade)
-                                {
-                                    tabela.AddRow(produtosMercado[itemIndex],
-                                                 preco[itemIndex].ToString("C2", new CultureInfo("pt-BR")),
-                                                 quantidade);
+                                tabela.AddRow(produtosMercado[itemIndex], precos[itemIndex].ToString("C2"), quantidade);
 
-                                    somaCompras += preco[itemIndex] * quantidade;
-
-                                    quantidadeDeProdutos[itemIndex] -= quantidade;
-                                    matrizProdutos[itemIndex, 2] = (estoqueAtual - quantidade).ToString();
-                                }
-                                else
-                                {
-                                    if (!produtosEsgotados.Contains(produtosMercado[itemIndex]))
-                                    {
-                                        Console.WriteLine($"Produto {produtosMercado[itemIndex]} esgotado. Não foi possível adicionar à compra.");
-                                        produtosEsgotados.Add(produtosMercado[itemIndex]);
-                                    }
-                                    i--;
-                                }
+                                somaCompras += precos[itemIndex] * quantidade;
+                                
+                                quantidadeDeProdutos[itemIndex] -= quantidade;
                             }
-                            totalDoDia += somaCompras;
+                            tabela.AddRow("","TOTAL", somaCompras.ToString("C2"));
 
                             tabela.AddRow("", "TOTAL", somaCompras.ToString("C2", new CultureInfo("pt-BR")));
                             tabela.Configure(o => o.EnableCount = false);
                             tabela.Write();
-                            Console.WriteLine("Atendimento finalizado com sucesso!");
+                            Console.WriteLine();
                         }
                         else
                         {
@@ -203,6 +153,13 @@ namespace SistemaSupermecado
                     default:
                         Console.Clear();
                         Console.WriteLine("Opção inválida. \nTente novamente.");
+                        Console.WriteLine("Pressione enter para continuar...");
+                        Console.ReadKey();
+                        break;
+                    case 4:
+                        Console.Clear();
+                        Console.WriteLine($"Total arrecadado no dia: {totalDoDia:C2}");
+                        Console.WriteLine();
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
