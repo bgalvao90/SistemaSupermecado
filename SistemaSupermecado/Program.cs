@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using ConsoleTables;
 
-namespace SistemaSupermecado
+namespace SistemaSupermercado
 {
     class Program
     {
@@ -15,8 +15,8 @@ namespace SistemaSupermecado
             Console.WriteLine("2 - Incluir cliente na fila");
             Console.WriteLine("3 - Atender primeiro da fila");
             Console.WriteLine("4 - Mostrar o total arrecadado no dia");
-            Console.WriteLine("5 - Cancelar compra do ultimo cliente");
-            Console.WriteLine("6 - Listar produtos por ordem alfabetica");
+            Console.WriteLine("5 - Cancelar compra do último cliente");
+            Console.WriteLine("6 - Listar produtos por ordem alfabética");
             Console.WriteLine("7 - Listar produtos por menor preço");
             Console.WriteLine("8 - Encerrar programa");
             Console.WriteLine();
@@ -51,6 +51,9 @@ namespace SistemaSupermecado
                 { "Chocolate", "4.79", "25" }
             };
             double totalDoDia = 0.0;
+
+            // Lista para armazenar as compras do último cliente atendido
+            List<(string produto, double preco, int quantidade)> ultimaCompra = new List<(string, double, int)>();
 
             static string CentralizarTexto(string texto, int largura)
             {
@@ -91,7 +94,6 @@ namespace SistemaSupermecado
                 }
             }
 
-
             static void MatrizParaArray(string[,] matrizProdutos, out string[] produtosMercado, out double[] preco, out int[] quantidadesDeProdutos)
             {
                 int tamanho = matrizProdutos.GetLength(0);
@@ -106,7 +108,7 @@ namespace SistemaSupermecado
                     quantidadesDeProdutos[i] = int.Parse(matrizProdutos[i, 2]);
                 }
             }
-            
+
             int opcao = program.MostrarMenu();
 
             do
@@ -173,6 +175,9 @@ namespace SistemaSupermecado
 
                                     somaCompras += preco[itemIndex] * quantidade;
 
+                                    // Armazenar a compra do cliente
+                                    ultimaCompra.Add((produtosMercado[itemIndex], preco[itemIndex], quantidade));
+
                                     quantidadeDeProdutos[itemIndex] -= quantidade;
                                     matrizProdutos[itemIndex, 2] = (estoqueAtual - quantidade).ToString();
                                 }
@@ -200,10 +205,33 @@ namespace SistemaSupermecado
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
+
                     case 4:
                         Console.Clear();
                         Console.WriteLine($"Total arrecadado no dia: {totalDoDia.ToString("C2", new CultureInfo("pt-BR"))}");
                         Console.WriteLine();
+                        Console.WriteLine("Pressione enter para continuar...");
+                        Console.ReadKey();
+                        break;
+
+                    case 5:
+                        Console.Clear();
+                        if (ultimaCompra.Count > 0)
+                        {
+                            Console.WriteLine("Cancelando a compra do último cliente atendido...");
+                            foreach (var item in ultimaCompra)
+                            {
+                                int itemIndex = Array.IndexOf(produtosMercado, item.produto);
+                                quantidadeDeProdutos[itemIndex] += item.quantidade;
+                                matrizProdutos[itemIndex, 2] = quantidadeDeProdutos[itemIndex].ToString();
+                                Console.WriteLine($"Produto: {item.produto}, Quantidade: {item.quantidade} devolvida ao estoque.");
+                            }
+                            ultimaCompra.Clear();
+                        }
+                        else
+                        {
+                            Console.WriteLine("Não há compras para cancelar.");
+                        }
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
