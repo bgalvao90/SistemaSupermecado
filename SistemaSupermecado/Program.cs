@@ -214,7 +214,7 @@ namespace SistemaSupermercado
                         Console.ReadKey();
                         break;
 
-                        // Rafael
+                        // Rafael Caixeta
                     case 5:
                         Console.Clear();
                         if (ultimaCompra.Count > 0)
