@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection.Emit;
 using ConsoleTables;
 
 namespace SistemaSupermercado
@@ -11,8 +12,8 @@ namespace SistemaSupermercado
         {
             Console.WriteLine("O que você deseja fazer?");
             Console.WriteLine();
-            Console.WriteLine("1 - Verificar produtos disponíveis no mercado:");
-            Console.WriteLine("2 - Incluir cliente na fila");
+            Console.WriteLine("1 - Incluir cliente na fila:");
+            Console.WriteLine("2 - Exibir fila");
             Console.WriteLine("3 - Atender primeiro da fila");
             Console.WriteLine("4 - Mostrar o total arrecadado no dia");
             Console.WriteLine("5 - Cancelar compra do último cliente");
@@ -29,6 +30,7 @@ namespace SistemaSupermercado
             return opcao;
         }
 
+       
         static void Main(string[] args)
         {
             Program program = new Program();
@@ -65,33 +67,25 @@ namespace SistemaSupermercado
                 return texto.PadLeft(padLeft).PadRight(largura);
             }
 
-            void ExibirProdutos(string[,] produtos)
-            {
-                Console.WriteLine("Produtos disponíveis no mercado:");
-                Console.WriteLine();
-                var tabela = new ConsoleTable("Produto", "Preço (R$)", "Unidades");
-                int larguraProduto = 12;
-                int larguraPreco = 12;
-                int larguraUnidades = 10;
-                for (int i = 0; i < produtos.GetLength(0); i++)
-                {
-                    tabela.AddRow(
-                        CentralizarTexto(produtos[i, 0], larguraProduto),
-                        CentralizarTexto(double.Parse(produtos[i, 1], CultureInfo.InvariantCulture).ToString("C2", new CultureInfo("pt-BR")), larguraPreco),
-                        CentralizarTexto(produtos[i, 2], larguraUnidades)
-                    );
-                }
-                tabela.Configure(o => o.EnableCount = false);
-                tabela.Write();
-            }
 
             void ExibirFila()
             {
+                Console.WriteLine("Fila de clientes:");
+                var tabelaFila = new ConsoleTable("Posição", "Cliente");
+                if (fila.Count == 0)
+                {
+                    Console.WriteLine("Nenhum cliente na fila.");
+                    return;
+                }
                 int posicao = 1;
                 foreach (var cliente in fila)
                 {
-                    Console.WriteLine($"{posicao++}. {cliente}");
+                    tabelaFila.AddRow(posicao, cliente);
+                    posicao++;
                 }
+                tabelaFila.Configure(o => o.EnableCount = false);
+                tabelaFila.Write();
+                Console.WriteLine("Total de clientes na fila: " + fila.Count);
             }
 
             static void MatrizParaArray(string[,] matrizProdutos, out string[] produtosMercado, out double[] preco, out int[] quantidadesDeProdutos)
@@ -122,13 +116,6 @@ namespace SistemaSupermercado
                 {
                     case 1:
                         Console.Clear();
-                        ExibirProdutos(matrizProdutos);
-                        Console.WriteLine("Pressione enter para continuar...");
-                        Console.ReadKey();
-                        break;
-
-                    case 2:
-                        Console.Clear();
                         if (indiceCliente < clientes.Length)
                         {
                             string proximoCliente = clientes[indiceCliente];
@@ -141,6 +128,12 @@ namespace SistemaSupermercado
                                 indiceCliente = resetaFila;
                             }
                         }
+                        Console.WriteLine("Pressione enter para continuar...");
+                        Console.ReadKey();
+                        break;
+
+                    case 2:
+                        Console.Clear();
                         ExibirFila();
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
@@ -214,19 +207,27 @@ namespace SistemaSupermercado
                         Console.ReadKey();
                         break;
 
-                        // Rafael Caixeta
+                    // Rafael Caixeta
                     case 5:
                         Console.Clear();
                         if (ultimaCompra.Count > 0)
                         {
                             Console.WriteLine("Cancelando a compra do último cliente atendido...");
+                            var tabelaCancelamento = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
+                            
                             foreach (var item in ultimaCompra)
                             {
                                 int itemIndex = Array.IndexOf(produtosMercado, item.produto);
                                 quantidadeDeProdutos[itemIndex] += item.quantidade;
                                 matrizProdutos[itemIndex, 2] = quantidadeDeProdutos[itemIndex].ToString();
-                                Console.WriteLine($"Produto: {item.produto}, Quantidade: {item.quantidade} devolvida ao estoque.");
+                                tabelaCancelamento.AddRow(item.produto, item.preco.ToString("C2", new CultureInfo("pt-BR")), item.quantidade);
                             }
+                            tabelaCancelamento.AddRow("", "TOTAL", ultimaCompra.Sum(x => x.preco * x.quantidade).ToString("C2", new CultureInfo("pt-BR")));
+                            tabelaCancelamento.Configure(o => o.EnableCount = false);
+                            tabelaCancelamento.Write();
+                            Console.WriteLine("Compra cancelada e unidades retornadas ao estoque");
+                            Console.WriteLine("Valor retornado para o cliente.");
+                            totalDoDia -= ultimaCompra.Sum(x => x.preco * x.quantidade);
                             ultimaCompra.Clear();
                         }
                         else
@@ -236,7 +237,54 @@ namespace SistemaSupermercado
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
+                    case 6:
+                        Console.Clear();
+                        (string nome, double preco, int quantidade)[] produtosCompletos = new (string, double, int)[produtosMercado.Length];
 
+                        for (int i = 0; i < produtosMercado.Length; i++)
+                        {
+                            produtosCompletos[i] = (produtosMercado[i], preco[i], quantidadeDeProdutos[i]);
+                        }
+                        Array.Sort(produtosCompletos, (x, y) => string.Compare(x.nome, y.nome, StringComparison.OrdinalIgnoreCase));
+
+                        Console.WriteLine("Produtos ordenados por ordem alfabética:");
+                        var tabelaOrdAlfabetica = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
+                        foreach (var produto in produtosCompletos)
+                        {
+                            tabelaOrdAlfabetica.AddRow(produto.nome, produto.preco.ToString("F2", new CultureInfo("pt-BR")), produto.quantidade);
+                        }
+                        
+                        tabelaOrdAlfabetica.Configure(o => o.EnableCount = false);
+                        tabelaOrdAlfabetica.Write();
+                        Console.WriteLine("Pressione enter para continuar...");
+                        Console.ReadKey();
+                        break;
+                    
+                    case 7:
+                        Console.Clear();
+                        Array.Sort(preco, produtosMercado);
+
+                        Console.WriteLine("Produtos ordenados por menor preço:");
+                        int[] quantidadeDeProdutosOrdenado = new int[quantidadeDeProdutos.Length];
+                        for (int i = 0; i < preco.Length; i++)
+                        {
+                            int index = Array.IndexOf(produtosMercado, matrizProdutos[i, 0]);
+                            quantidadeDeProdutosOrdenado[i] = quantidadeDeProdutos[index];
+                        }
+                        quantidadeDeProdutos = quantidadeDeProdutosOrdenado;
+                        var tabelaMenorPreco = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
+                        for (int i = 0; i < preco.Length; i++)
+                        {
+                            tabelaMenorPreco.AddRow(produtosMercado[i], preco[i].ToString("F2", new CultureInfo("pt-BR")), quantidadeDeProdutos[i]);
+                        }
+                        tabelaMenorPreco.Configure(o => o.EnableCount = false);
+                        tabelaMenorPreco.Write();
+                       
+
+                        Console.WriteLine("Pressione enter para continuar...");
+                        Console.ReadKey();
+                        break;
+                      
                     default:
                         Console.Clear();
                         Console.WriteLine("Opção inválida. \nTente novamente.");
