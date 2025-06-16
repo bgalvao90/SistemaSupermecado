@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection.Emit;
@@ -30,7 +31,10 @@ namespace SistemaSupermercado
             return opcao;
         }
 
-       
+        // Change the declaration of `ultimaCompra` to be static since it is being accessed in a static context.
+        static Stack<(string cliente, string produto, double preco, int quantidade)> ultimaCompra = new Stack<(string, string, double, int)>();
+
+
         static void Main(string[] args)
         {
             Program program = new Program();
@@ -54,8 +58,6 @@ namespace SistemaSupermercado
             };
             double totalDoDia = 0.0;
 
-            // Lista para armazenar as compras do último cliente atendido
-            List<(string produto, double preco, int quantidade)> ultimaCompra = new List<(string, double, int)>();
 
             static string CentralizarTexto(string texto, int largura)
             {
@@ -150,29 +152,49 @@ namespace SistemaSupermercado
                             Console.WriteLine($"Itens comprados: ");
                             var tabela = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
                             double somaCompras = 0.0;
-
                             HashSet<string> produtosEsgotados = new HashSet<string>();
+                            HashSet<int> indicesSelecionados = new HashSet<int>();
 
                             for (int i = 0; i < quantidadeItens; i++)
                             {
-                                int itemIndex = random.Next(0, produtosMercado.Length);
-                                int quantidade = random.Next(1, 5);
+                                int itemIndex;
+                                int tentativas = 0;
+                                int maxTentativas = 10; 
 
+                                do
+                                {
+                                    itemIndex = random.Next(0, produtosMercado.Length);
+                                    tentativas++;
+                                }
+                                while (
+                                    (indicesSelecionados.Contains(itemIndex) || 
+                                     produtosEsgotados.Contains(produtosMercado[itemIndex])) && 
+                                    tentativas < maxTentativas
+                                );
+
+                                if (tentativas >= maxTentativas)
+                                {
+                                    Console.WriteLine("Não foi possível encontrar um produto disponível para compra.");
+                                    break;
+                                }
+
+                                indicesSelecionados.Add(itemIndex); 
+
+                                int quantidade = random.Next(1, 5);
                                 int estoqueAtual = int.Parse(matrizProdutos[itemIndex, 2]);
 
                                 if (estoqueAtual >= quantidade)
                                 {
-                                    tabela.AddRow(produtosMercado[itemIndex],
-                                                 preco[itemIndex].ToString("C2", new CultureInfo("pt-BR")),
-                                                 quantidade);
+                                    tabela.AddRow(
+                                        produtosMercado[itemIndex],
+                                        preco[itemIndex].ToString("C2", new CultureInfo("pt-BR")),
+                                        quantidade
+                                    );
 
                                     somaCompras += preco[itemIndex] * quantidade;
-
-                                    // Armazenar a compra do cliente
-                                    ultimaCompra.Add((produtosMercado[itemIndex], preco[itemIndex], quantidade));
-
                                     quantidadeDeProdutos[itemIndex] -= quantidade;
                                     matrizProdutos[itemIndex, 2] = (estoqueAtual - quantidade).ToString();
+                                    ultimaCompra.Push((clienteAtendido, produtosMercado[itemIndex], preco[itemIndex], quantidade));
                                 }
                                 else
                                 {
@@ -181,11 +203,11 @@ namespace SistemaSupermercado
                                         Console.WriteLine($"Produto {produtosMercado[itemIndex]} esgotado. Não foi possível adicionar à compra.");
                                         produtosEsgotados.Add(produtosMercado[itemIndex]);
                                     }
-                                    i--;
+                                    i--; 
                                 }
                             }
-                            totalDoDia += somaCompras;
 
+                            totalDoDia += somaCompras;
                             tabela.AddRow("", "TOTAL", somaCompras.ToString("C2", new CultureInfo("pt-BR")));
                             tabela.Configure(o => o.EnableCount = false);
                             tabela.Write();
@@ -198,7 +220,6 @@ namespace SistemaSupermercado
                         Console.WriteLine("Pressione enter para continuar...");
                         Console.ReadKey();
                         break;
-
                     case 4:
                         Console.Clear();
                         Console.WriteLine($"Total arrecadado no dia: {totalDoDia.ToString("C2", new CultureInfo("pt-BR"))}");
@@ -212,23 +233,48 @@ namespace SistemaSupermercado
                         Console.Clear();
                         if (ultimaCompra.Count > 0)
                         {
-                            Console.WriteLine("Cancelando a compra do último cliente atendido...");
-                            var tabelaCancelamento = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
-                            
-                            foreach (var item in ultimaCompra)
+                            Console.WriteLine("Deseja cancelar a compra do último cliente atendido? (S/N)");
+                            string resposta = Console.ReadLine().ToUpper();
+
+                            if (resposta == "S")
                             {
-                                int itemIndex = Array.IndexOf(produtosMercado, item.produto);
-                                quantidadeDeProdutos[itemIndex] += item.quantidade;
-                                matrizProdutos[itemIndex, 2] = quantidadeDeProdutos[itemIndex].ToString();
-                                tabelaCancelamento.AddRow(item.produto, item.preco.ToString("C2", new CultureInfo("pt-BR")), item.quantidade);
+                                Console.WriteLine("Cancelando a compra do último cliente atendido...");
+                                var tabelaCancelamento = new ConsoleTable("Produto", "Preço (R$)", "Quantidade");
+
+                                var ultimoItem = ultimaCompra.Peek();
+                                string clienteCancelado = ultimoItem.cliente;
+                                double totalDevolvido = 0.0;
+
+                                while (ultimaCompra.Count > 0 && ultimaCompra.Peek().cliente == clienteCancelado)
+                                {
+                                    var item = ultimaCompra.Pop(); 
+                                    tabelaCancelamento.AddRow(
+                                        item.produto,
+                                        item.preco.ToString("C2", new CultureInfo("pt-BR")),
+                                        item.quantidade
+                                    );
+
+                                    int itemIndex = Array.IndexOf(produtosMercado, item.produto);
+                                    if (itemIndex >= 0)
+                                    {
+                                        quantidadeDeProdutos[itemIndex] += item.quantidade;
+                                        matrizProdutos[itemIndex, 2] = quantidadeDeProdutos[itemIndex].ToString();
+                                    }
+
+                                    totalDevolvido += item.preco * item.quantidade;
+                                }
+
+                                tabelaCancelamento.AddRow("", "TOTAL", totalDevolvido.ToString("C2", new CultureInfo("pt-BR")));
+                                tabelaCancelamento.Configure(o => o.EnableCount = false);
+                                tabelaCancelamento.Write();
+
+                                Console.WriteLine($"Compra cancelada. Valor devolvido: {totalDevolvido.ToString("C2")}");
+                                totalDoDia -= totalDevolvido;
                             }
-                            tabelaCancelamento.AddRow("", "TOTAL", ultimaCompra.Sum(x => x.preco * x.quantidade).ToString("C2", new CultureInfo("pt-BR")));
-                            tabelaCancelamento.Configure(o => o.EnableCount = false);
-                            tabelaCancelamento.Write();
-                            Console.WriteLine("Compra cancelada e unidades retornadas ao estoque");
-                            Console.WriteLine("Valor retornado para o cliente.");
-                            totalDoDia -= ultimaCompra.Sum(x => x.preco * x.quantidade);
-                            ultimaCompra.Clear();
+                            else
+                            {
+                                Console.WriteLine("Operação cancelada pelo usuário.");
+                            }
                         }
                         else
                         {
